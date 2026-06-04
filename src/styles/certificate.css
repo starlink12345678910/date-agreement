@@ -13,9 +13,9 @@
   text-align: center;
   color: var(--ink);
   overflow: hidden;
-  background:
-    radial-gradient(150% 70% at 50% -10%, rgba(255, 244, 222, 0.85), transparent 60%),
-    linear-gradient(180deg, #fffefb 0%, #fff8ee 100%);
+  background: linear-gradient(160deg, #fffefb 0%, #fff6e8 40%, #fff8ee 100%);
+  background-color: #fffefb;
+  isolation: isolate;
   border: 1px solid rgba(201, 162, 74, 0.4);
   box-shadow:
     0 34px 80px -30px rgba(214, 51, 108, 0.42),
