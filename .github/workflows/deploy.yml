@@ -1,19 +1,15 @@
-# Автоматическая сборка и публикация на GitHub Pages.
-# Запускается при каждом пуше в ветку main.
 name: Deploy to GitHub Pages
 
 on:
   push:
     branches: [main]
-  workflow_dispatch: # позволяет запустить вручную из вкладки Actions
+  workflow_dispatch:
 
-# Права, нужные для публикации на Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Параллельные деплои не нужны — берём последний
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -39,6 +35,8 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
