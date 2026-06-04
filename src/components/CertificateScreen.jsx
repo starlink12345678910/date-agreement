@@ -43,10 +43,11 @@ export default function CertificateScreen({ place, date, time, signature, onRest
     if (phase === 'busy') return
     setPhase('busy')
     vibrate(12)
-    const res = await shareNodeAsImage(cardRef.current, {
+   const res = await shareNodeAsImage(cardRef.current, {
       filename: c.shareFile,
       title: c.title,
-      text: `${config.her} \u2764\ufe0f ${config.him}`,
+      text: `${config.her} ❤️ ${config.him}`,
+      signatureDataUrl: signature,
     })
     if (res.ok && res.method === 'share') setPhase('shared')
     else if (res.ok && res.method === 'download') setPhase('saved')
