@@ -1,6 +1,5 @@
-import { toPng } from 'html-to-image'
+import { toCanvas } from 'html-to-image'
 
-/** Convert a data URL into a File so it can be shared via the Web Share API. */
 function dataUrlToFile(dataUrl, filename) {
   const [head, b64] = dataUrl.split(',')
   const mime = (head.match(/:(.*?);/) || [])[1] || 'image/png'
@@ -10,7 +9,6 @@ function dataUrlToFile(dataUrl, filename) {
   return new File([u8], filename, { type: mime })
 }
 
-/** Trigger a normal file download from a data URL. */
 function downloadDataUrl(dataUrl, filename) {
   const a = document.createElement('a')
   a.href = dataUrl
@@ -20,7 +18,6 @@ function downloadDataUrl(dataUrl, filename) {
   a.remove()
 }
 
-/** True if the device can share image files via the native share sheet. */
 export function canShareFiles() {
   try {
     if (typeof navigator === 'undefined' || !navigator.canShare) return false
@@ -31,38 +28,64 @@ export function canShareFiles() {
   }
 }
 
-/**
- * Render `node` to a PNG, then share it via the native sheet (mobile) or
- * download it (desktop / unsupported). Returns a result describing what happened
- * so the UI can show the right confirmation.
- */
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = reject
+    img.src = src
+  })
+}
+
 export async function shareNodeAsImage(
   node,
-  { filename = 'date-certificate.png', title, text } = {}
+  { filename = 'date-certificate.png', title, text, signatureDataUrl = null } = {}
 ) {
   if (!node) return { ok: false }
 
-  // Make sure custom fonts are ready so the image isn't rendered with fallbacks.
   try {
     if (typeof document !== 'undefined' && document.fonts?.ready) {
       await document.fonts.ready
     }
-  } catch {
-    /* ignore */
-  }
+  } catch {}
 
-  let dataUrl
+  await new Promise(r => setTimeout(r, 80))
+
+  let canvas
+  const PIXEL_RATIO = 2
+
   try {
-    dataUrl = await toPng(node, {
-      pixelRatio: 2, // crisp on retina screens
+    canvas = await toCanvas(node, {
+      pixelRatio: PIXEL_RATIO,
       cacheBust: true,
-      backgroundColor: '#fff8ee', // matches the card so rounded corners blend in
+      backgroundColor: '#fff8ee',
     })
   } catch (error) {
     return { ok: false, error }
   }
 
-  // Try the native share sheet with the image file (best on phones).
+  if (signatureDataUrl) {
+    try {
+      const signBox = node.querySelector('.cert__sign-box')
+      if (signBox) {
+        const cardRect = node.getBoundingClientRect()
+        const boxRect = signBox.getBoundingClientRect()
+        const scaleX = canvas.width / cardRect.width
+        const scaleY = canvas.height / cardRect.height
+        const dx = (boxRect.left - cardRect.left) * scaleX
+        const dy = (boxRect.top - cardRect.top) * scaleY
+        const dw = boxRect.width * scaleX
+        const dh = boxRect.height * scaleY
+        const padding = 8 * PIXEL_RATIO
+        const sigImg = await loadImage(signatureDataUrl)
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(sigImg, dx + padding, dy + padding, dw - padding * 2, dh - padding * 2)
+      }
+    } catch {}
+  }
+
+  const dataUrl = canvas.toDataURL('image/png')
+
   try {
     const file = dataUrlToFile(dataUrl, filename)
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -70,16 +93,11 @@ export async function shareNodeAsImage(
         await navigator.share({ files: [file], title, text })
         return { ok: true, method: 'share' }
       } catch (error) {
-        // User dismissed the sheet — not an error, just stop quietly.
         if (error && error.name === 'AbortError') return { ok: false, cancelled: true }
-        // Otherwise fall through to download.
       }
     }
-  } catch {
-    /* fall through to download */
-  }
+  } catch {}
 
-  // Fallback: save the image to the device.
   try {
     downloadDataUrl(dataUrl, filename)
     return { ok: true, method: 'download' }
